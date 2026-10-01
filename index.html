@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Green Life — لوحة التحكم</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#eefbf0', 100:'#d7f5db', 200:'#b1eabb', 300:'#7eda8e', 400:'#47c25e', 500:'#1B7A3D', 600:'#176b34', 700:'#13562b', 800:'#124525', 900:'#0e3a1f' },
+          },
+          fontFamily: { sans: ['"IBM Plex Sans Arabic"','sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'IBM Plex Sans Arabic', sans-serif; }
+    .sidebar-link.active { background: rgba(27,122,61,.1); color: #1B7A3D; font-weight: 600; }
+    .sidebar-link:hover:not(.active) { background: #f1f5f9; }
+    .page { display: none; } .page.active { display: block; }
+    .stat-card { transition: transform .15s, box-shadow .15s; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,.08); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-frozen { background: #dbeafe; color: #1e40af; }
+    .badge-expired { background: #fef3c7; color: #92400e; }
+    .badge-cancelled { background: #fee2e2; color: #991b1b; }
+    .badge-pending { background: #f3f4f6; color: #4b5563; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #1B7A3D; box-shadow: 0 0 0 3px rgba(27,122,61,.1); }
+    .modal-overlay { background: rgba(0,0,0,.4); backdrop-filter: blur(4px); }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);padding:10px 24px;border-radius:10px;font-size:13px;font-weight:500;z-index:100;opacity:0;transition:all .3s;pointer-events:none}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast-success{background:#166534;color:#fff} .toast-error{background:#991b1b;color:#fff} .toast-info{background:#1e40af;color:#fff}
+    .action-btn{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s}
+    .action-btn:hover{filter:brightness(1.1)}
+    .hamburger{display:none}
+    @media(max-width:768px){.sidebar{transform:translateX(100%)}.sidebar.open{transform:translateX(0)}.main-wrap{margin-right:0!important}.hamburger{display:flex}.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:25}.overlay.open{display:block}}
+    @media print{
+      .sidebar,.top-bar,.no-print{display:none!important}
+      .main-wrap{margin-right:0!important}
+      .page{display:none!important}
+      .page.print-target{display:block!important}
+      .print-header{display:flex!important}
+      body{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .stat-card{box-shadow:none!important;border:1px solid #e5e7eb!important}
+      table{font-size:11px!important}
+    }
+    .print-header{display:none;align-items:center;justify-content:space-between;padding:16px 0;margin-bottom:16px;border-bottom:2px solid #1B7A3D}
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen flex">
+
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<aside id="sidebar" class="sidebar w-64 bg-white border-l border-gray-200 flex flex-col fixed top-0 right-0 h-full z-30 transition-transform">
+  <div class="p-5 border-b border-gray-100">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/></svg>
+      </div>
+      <div><h1 class="text-lg font-bold text-brand-600">Green Life</h1><p class="text-xs text-gray-400">لوحة التحكم</p></div>
+    </div>
+  </div>
+  <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+    <a onclick="go('overview')" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="overview"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> نظرة عامة</a>
+    <a onclick="go('meals')" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="meals"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 6v-2m0 2a5 5 0 015 5v4H7v-4a5 5 0 015-5zm-3 14h6m-8-4h10"/></svg> الوجبات</a>
+    <a onclick="go('plans')" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="plans"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> الباقات</a>
+    <a onclick="go('subscriptions')" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="subscriptions"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> الاشتراكات</a>
+    <a onclick="go('daily')" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="daily"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 17h6M9 13h6M5 21h14a2 2 0 002-2V7.5L16.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> الطلبات اليومية</a>
+    <a onclick="go('customers')" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="customers"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> العملاء</a>
+    <div class="pt-3 mt-3 border-t border-gray-100"><p class="px-3 pb-2 text-xs font-medium text-gray-400">إعدادات</p></div>
+    <a onclick="go('reports')" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="reports"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 6-6"/></svg> التقارير</a>
+    <a onclick="go('settings')" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-sm" data-page="settings"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> الإعدادات</a>
+  </nav>
+  <div class="p-4 border-t border-gray-100">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center"><span class="text-sm font-bold text-brand-600">ف</span></div>
+      <div class="flex-1 min-w-0"><p class="text-sm font-medium truncate" id="sidebarName">فت كيتشن</p><p class="text-xs text-gray-400">مدير</p></div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main-wrap flex-1" style="margin-right:256px">
+  <header class="top-bar bg-white border-b border-gray-200 sticky top-0 z-20">
+    <div class="flex items-center justify-between px-6 py-3 gap-3">
+      <div class="flex items-center gap-3">
+        <button class="hamburger p-2 rounded-lg hover:bg-gray-100" onclick="toggleSidebar()"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><h2 id="pageTitle" class="text-lg font-bold">نظرة عامة</h2><p id="pageSubtitle" class="text-xs text-gray-400">مرحباً بك في لوحة تحكم Green Life</p></div>
+      </div>
+      <div class="flex items-center gap-3">
+        <select id="branchFilter" onchange="renderAll()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
+          <option value="all">كل الفروع</option>
+        </select>
+        <button class="relative p-2 rounded-lg hover:bg-gray-100">
+          <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="p-6">
+    <!-- Overview -->
+    <div id="page-overview" class="page active">
+      <div class="print-header"><div><h2 class="text-xl font-bold text-brand-600" id="printName1">Green Life</h2><p class="text-sm text-gray-500">تقرير نظرة عامة — <span id="printDate1"></span></p></div><div class="text-left text-sm text-gray-400">لوحة التحكم</div></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8" id="statsGrid"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 p-5"><div class="flex items-center justify-between mb-4"><h3 class="font-bold text-sm">الإيرادات الشهرية</h3><select class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50"><option>آخر 6 أشهر</option></select></div><canvas id="revenueChart" height="200"></canvas></div>
+        <div class="bg-white rounded-xl border border-gray-100 p-5"><h3 class="font-bold text-sm mb-4">توزيع الباقات</h3><canvas id="plansChart" height="200"></canvas>
+          <div class="mt-4 space-y-2" id="planLegend"></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100">
+        <div class="flex items-center justify-between p-5 border-b border-gray-100"><h3 class="font-bold text-sm">آخر الاشتراكات</h3><a onclick="go('subscriptions')" class="text-xs text-brand-500 font-medium cursor-pointer hover:underline">عرض الكل</a></div>
+        <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 bg-gray-50/50"><th class="text-right px-5 py-3 font-medium">العميل</th><th class="text-right px-5 py-3 font-medium">الباقة</th><th class="text-right px-5 py-3 font-medium">الفرع</th><th class="text-right px-5 py-3 font-medium">المبلغ</th><th class="text-right px-5 py-3 font-medium">الحالة</th></tr></thead><tbody id="recentSubs"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Meals -->
+    <div id="page-meals" class="page">
+      <div class="print-header"><div><h2 class="text-xl font-bold text-brand-600" id="printName2">Green Life</h2><p class="text-sm text-gray-500">قائمة الوجبات — <span id="printDate2"></span></p></div></div>
+      <div class="flex items-center justify-between mb-6 no-print flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <input type="text" id="mealSearch" oninput="renderMeals()" placeholder="بحث عن وجبة..." class="w-64 px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+          <select id="mealCatFilter" onchange="renderMeals()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white"><option value="">كل التصنيفات</option><option>رئيسية</option><option>سلطة</option><option>سناك</option><option>حلى</option></select>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="printPage('meals')" class="bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg> طباعة PDF</button>
+          <button onclick="openMealModal()" class="bg-brand-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-600 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></svg> إضافة وجبة</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 overflow-hidden"><table class="w-full text-sm"><thead><tr class="text-gray-500 bg-gray-50/50"><th class="text-right px-5 py-3 font-medium">الوجبة</th><th class="text-right px-5 py-3 font-medium">التصنيف</th><th class="text-right px-5 py-3 font-medium">السعرات</th><th class="text-right px-5 py-3 font-medium">بروتين</th><th class="text-right px-5 py-3 font-medium">كارب</th><th class="text-right px-5 py-3 font-medium">دهون</th><th class="text-right px-5 py-3 font-medium">الحالة</th><th class="text-right px-5 py-3 font-medium no-print">إجراءات</th></tr></thead><tbody id="mealsBody"></tbody></table></div>
+    </div>
+
+    <!-- Plans -->
+    <div id="page-plans" class="page">
+      <div class="print-header"><div><h2 class="text-xl font-bold text-brand-600" id="printName3">Green Life</h2><p class="text-sm text-gray-500">الباقات — <span id="printDate3"></span></p></div></div>
+      <div class="flex items-center justify-between mb-6 no-print">
+        <div class="flex gap-2">
+          <button onclick="printPage('plans')" class="bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">طباعة PDF</button>
+          <button onclick="openPlanModal()" class="bg-brand-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-600 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></svg> إضافة باقة</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="plansGrid"></div>
+    </div>
+
+    <!-- Subscriptions -->
+    <div id="page-subscriptions" class="page">
+      <div class="print-header"><div><h2 class="text-xl font-bold text-brand-600" id="printName4">Green Life</h2><p class="text-sm text-gray-500">الاشتراكات — <span id="printDate4"></span></p></div></div>
+      <div class="flex items-center gap-3 mb-6 flex-wrap no-print">
+        <input type="text" id="subSearch" oninput="renderSubs()" placeholder="بحث بالاسم..." class="w-64 px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+        <select id="subStatusFilter" onchange="renderSubs()" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white"><option value="">كل الحالات</option><option value="active">فعّال</option><option value="frozen">مُجمّد</option><option value="expired">منتهي</option><option value="cancelled">ملغي</option></select>
+        <button onclick="printPage('subscriptions')" class="mr-auto bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">طباعة PDF</button>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 overflow-hidden"><table class="w-full text-sm"><thead><tr class="text-gray-500 bg-gray-50/50"><th class="text-right px-5 py-3 font-medium">العميل</th><th class="text-right px-5 py-3 font-medium">الباقة</th><th class="text-right px-5 py-3 font-medium">الفرع</th><th class="text-right px-5 py-3 font-medium">بداية</th><th class="text-right px-5 py-3 font-medium">نهاية</th><th class="text-right px-5 py-3 font-medium">المبلغ</th><th class="text-right px-5 py-3 font-medium">الحالة</th><th class="text-right px-5 py-3 font-medium no-print">إجراءات</th></tr></thead><tbody id="subsBody"></tbody></table></div>
+    </div>
+
+    <!-- Daily Orders -->
+    <div id="page-daily" class="page">
+      <div class="print-header"><div><h2 class="text-xl font-bold text-brand-600" id="printName5">Green Life</h2><p class="text-sm text-gray-500">كشف الطلبات اليومية — <span id="printDate5"></span></p></div></div>
+      <div class="flex items-center gap-4 mb-6 flex-wrap no-print">
+        <input type="date" value="2026-10-01" class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+        <div class="flex items-center gap-3" id="dailyStats"></div>
+        <button onclick="printPage('daily')" class="mr-auto bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg> طباعة كشف المطبخ</button>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 overflow-hidden"><table class="w-full text-sm"><thead><tr class="text-gray-500 bg-gray-50/50"><th class="text-right px-5 py-3 font-medium">#</th><th class="text-right px-5 py-3 font-medium">العميل</th><th class="text-right px-5 py-3 font-medium">الوجبة</th><th class="text-right px-5 py-3 font-medium">النوع</th><th class="text-right px-5 py-3 font-medium">الكارب</th><th class="text-right px-5 py-3 font-medium">الفرع</th><th class="text-right px-5 py-3 font-medium">العنوان</th><th class="text-right px-5 py-3 font-medium">الحالة</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+    </div>
+
+    <!-- Customers -->
+    <div id="page-customers" class="page">
+      <div class="print-header"><div><h2 class="text-xl font-bold text-brand-600" id="printName6">Green Life</h2><p class="text-sm text-gray-500">العملاء — <span id="printDate6"></span></p></div></div>
+      <div class="flex items-center gap-3 mb-6 no-print">
+        <input type="text" id="custSearch" oninput="renderCustomers()" placeholder="بحث بالاسم أو الجوال..." class="w-64 px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+        <button onclick="printPage('customers')" class="mr-auto bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">طباعة PDF</button>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 overflow-hidden"><table class="w-full text-sm"><thead><tr class="text-gray-500 bg-gray-50/50"><th class="text-right px-5 py-3 font-medium">العميل</th><th class="text-right px-5 py-3 font-medium">الجوال</th><th class="text-right px-5 py-3 font-medium">المدينة</th><th class="text-right px-5 py-3 font-medium">الفرع</th><th class="text-right px-5 py-3 font-medium">الاشتراكات</th><th class="text-right px-5 py-3 font-medium">الإنفاق</th><th class="text-right px-5 py-3 font-medium">تسجيل</th></tr></thead><tbody id="custBody"></tbody></table></div>
+    </div>
+
+    <!-- Reports -->
+    <div id="page-reports" class="page">
+      <div class="print-header"><div><h2 class="text-xl font-bold text-brand-600" id="printName7">Green Life</h2><p class="text-sm text-gray-500">تقرير الأداء — <span id="printDate7"></span></p></div></div>
+      <div class="flex items-center justify-between mb-6 no-print">
+        <h3 class="font-bold">تقارير الأداء</h3>
+        <button onclick="printPage('reports')" class="bg-brand-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-600 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg> تصدير التقرير PDF</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8" id="reportStats"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-xl border border-gray-100 p-5"><h3 class="font-bold text-sm mb-4">الإيرادات حسب الفرع</h3><canvas id="reportBranchChart" height="200"></canvas></div>
+        <div class="bg-white rounded-xl border border-gray-100 p-5"><h3 class="font-bold text-sm mb-4">العملاء الجدد — آخر 30 يوم</h3><canvas id="reportCustChart" height="200"></canvas></div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 p-5 mb-8">
+        <h3 class="font-bold text-sm mb-4">الإيرادات الشهرية حسب الفرع</h3>
+        <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 bg-gray-50/50"><th class="text-right px-5 py-3 font-medium">الشهر</th><th class="text-right px-5 py-3 font-medium" id="rh1"></th><th class="text-right px-5 py-3 font-medium" id="rh2"></th><th class="text-right px-5 py-3 font-medium" id="rh3"></th><th class="text-right px-5 py-3 font-medium">الإجمالي</th></tr></thead>
+        <tbody id="revTable"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="page-settings" class="page">
+      <div class="max-w-2xl space-y-6">
+        <div class="bg-white rounded-xl border border-gray-100 p-6">
+          <h3 class="font-bold text-sm mb-4">معلومات المطعم</h3>
+          <div class="space-y-4">
+            <div><label class="block text-sm text-gray-600 mb-1">اسم المطعم</label><input type="text" id="setName" value="فت كيتشن" oninput="saveSettings()" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+            <div><label class="block text-sm text-gray-600 mb-1">الوصف</label><textarea id="setDesc" rows="3" oninput="saveSettings()" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg">وجبات صحية متوازنة بمكونات طازجة يومياً</textarea></div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-sm text-gray-600 mb-1">رقم الجوال</label><input type="text" id="setPhone" value="0555123456" oninput="saveSettings()" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+              <div><label class="block text-sm text-gray-600 mb-1">نسبة الضريبة %</label><input type="number" id="setTax" value="15" oninput="saveSettings()" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-6">
+          <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-sm">الفروع والمدن</h3><button onclick="openBranchModal()" class="bg-brand-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-600">+ إضافة فرع</button></div>
+          <div class="space-y-3" id="branchesList"></div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 p-6">
+          <h3 class="font-bold text-sm mb-4">فترات التوصيل</h3>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><span class="text-sm font-medium flex-1">الفترة الصباحية</span><span class="text-sm text-gray-500">7:00 ص — 12:00 م</span></div>
+            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><span class="text-sm font-medium flex-1">الفترة المسائية</span><span class="text-sm text-gray-500">5:00 م — 10:00 م</span></div>
+          </div>
+        </div>
+        <button onclick="toast('تم حفظ الإعدادات','success')" class="bg-brand-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-600">حفظ التغييرات</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Meal Modal -->
+<div id="mealModal" class="fixed inset-0 z-50 hidden">
+  <div class="modal-overlay absolute inset-0" onclick="closeModal('mealModal')"></div>
+  <div class="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto mt-20 p-6">
+    <div class="flex items-center justify-between mb-5"><button onclick="closeModal('mealModal')" class="p-1 hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button><h3 class="font-bold" id="mealModalTitle">إضافة وجبة جديدة</h3></div>
+    <div class="space-y-4">
+      <input type="hidden" id="mealEditIdx" value="-1">
+      <div><label class="block text-sm text-gray-600 mb-1">اسم الوجبة</label><input type="text" id="mf_name" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      <div><label class="block text-sm text-gray-600 mb-1">التصنيف</label><select id="mf_cat" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"><option>رئيسية</option><option>سلطة</option><option>سناك</option><option>حلى</option></select></div>
+      <div class="grid grid-cols-4 gap-3">
+        <div><label class="block text-xs text-gray-500 mb-1">سعرات</label><input type="number" id="mf_cal" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">بروتين</label><input type="number" id="mf_pro" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">كارب</label><input type="number" id="mf_carb" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">دهون</label><input type="number" id="mf_fat" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg"></div>
+      </div>
+      <button onclick="saveMeal()" class="w-full bg-brand-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-brand-600" id="mealSaveBtn">إضافة الوجبة</button>
+    </div>
+  </div>
+</div>
+
+<!-- Plan Modal -->
+<div id="planModal" class="fixed inset-0 z-50 hidden">
+  <div class="modal-overlay absolute inset-0" onclick="closeModal('planModal')"></div>
+  <div class="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto mt-20 p-6">
+    <div class="flex items-center justify-between mb-5"><button onclick="closeModal('planModal')" class="p-1 hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button><h3 class="font-bold" id="planModalTitle">إضافة باقة جديدة</h3></div>
+    <div class="space-y-4">
+      <input type="hidden" id="planEditIdx" value="-1">
+      <div><label class="block text-sm text-gray-600 mb-1">اسم الباقة</label><input type="text" id="pf_name" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      <div><label class="block text-sm text-gray-600 mb-1">الوصف</label><textarea id="pf_desc" rows="2" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></textarea></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="block text-sm text-gray-600 mb-1">التصنيف</label><select id="pf_cat" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"><option>تخسيس</option><option>تضخيم</option><option>صحي</option><option>كيتو</option><option>رياضي</option></select></div>
+        <div><label class="block text-sm text-gray-600 mb-1">السعر (ر.س)</label><input type="number" id="pf_price" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="block text-sm text-gray-600 mb-1">عدد الأيام</label><select id="pf_days" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"><option>6</option><option>12</option><option>24</option><option>30</option></select></div>
+        <div><label class="block text-sm text-gray-600 mb-1">وجبات / يوم</label><input type="number" id="pf_meals" value="3" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      </div>
+      <button onclick="savePlan()" class="w-full bg-brand-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-brand-600" id="planSaveBtn">إضافة الباقة</button>
+    </div>
+  </div>
+</div>
+
+<!-- Branch Modal -->
+<div id="branchModal" class="fixed inset-0 z-50 hidden">
+  <div class="modal-overlay absolute inset-0" onclick="closeModal('branchModal')"></div>
+  <div class="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto mt-20 p-6">
+    <div class="flex items-center justify-between mb-5"><button onclick="closeModal('branchModal')" class="p-1 hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button><h3 class="font-bold">إضافة فرع جديد</h3></div>
+    <div class="space-y-4">
+      <div><label class="block text-sm text-gray-600 mb-1">اسم الفرع</label><input type="text" id="bf_name" placeholder="مثال: فرع الرياض" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      <div><label class="block text-sm text-gray-600 mb-1">المدينة</label><input type="text" id="bf_city" placeholder="اكتب اسم المدينة" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      <div><label class="block text-sm text-gray-600 mb-1">العنوان</label><input type="text" id="bf_addr" placeholder="الحي، الشارع" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      <div><label class="block text-sm text-gray-600 mb-1">الجوال</label><input type="text" id="bf_phone" placeholder="05xxxxxxxx" class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg"></div>
+      <button onclick="saveBranch()" class="w-full bg-brand-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-brand-600">إضافة الفرع</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirmModal" class="fixed inset-0 z-50 hidden">
+  <div class="modal-overlay absolute inset-0" onclick="closeModal('confirmModal')"></div>
+  <div class="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto mt-32 p-6 text-center">
+    <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3"><svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg></div>
+    <p class="font-bold mb-1" id="confirmTitle">تأكيد الحذف</p>
+    <p class="text-sm text-gray-500 mb-4" id="confirmMsg">هل أنت متأكد؟</p>
+    <div class="flex gap-3"><button onclick="closeModal('confirmModal')" class="flex-1 py-2 rounded-lg border border-gray-200 text-sm font-medium">إلغاء</button><button id="confirmBtn" class="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600">حذف</button></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toastEl" class="toast"></div>
+
+<script>
+const COLORS = ['bg-brand-500','bg-blue-500','bg-amber-500','bg-purple-500','bg-rose-500','bg-teal-500','bg-indigo-500'];
+const HEX = ['#1B7A3D','#3b82f6','#f59e0b','#8b5cf6','#f43f5e','#14b8a6','#6366f1'];
+const SM = {active:'فعّال',frozen:'مُجمّد',expired:'منتهي',cancelled:'ملغي'};
+
+function ls(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem('gl_'+k));localStorage.setItem('gl_'+k,JSON.stringify(v))}catch(e){return null}}
+
+// === DEFAULT DATA ===
+const DEF_BRANCHES = [
+  {id:1,name:'الفرع الرئيسي',city:'الدمام',addr:'حي الفيصلية، شارع الملك فهد',phone:'0555123456'},
+  {id:2,name:'فرع الخبر',city:'الخبر',addr:'حي العقربية، طريق الملك فيصل',phone:'0555234567'},
+  {id:3,name:'فرع الرياض',city:'الرياض',addr:'حي العليا، شارع التحلية',phone:'0555345678'},
+];
+const DEF_MEALS = [
+  {name:'دجاج مشوي مع أرز بني',cat:'رئيسية',cal:450,pro:38,carb:42,fat:12,active:true},
+  {name:'سلمون مع خضار سوتيه',cat:'رئيسية',cal:520,pro:42,carb:28,fat:22,active:true},
+  {name:'ستيك لحم مع بطاطا مشوية',cat:'رئيسية',cal:580,pro:45,carb:35,fat:25,active:true},
+  {name:'سلطة سيزر بالدجاج',cat:'سلطة',cal:320,pro:28,carb:18,fat:15,active:true},
+  {name:'بابيلا الجمبري',cat:'رئيسية',cal:438,pro:30,carb:45,fat:12,active:true},
+  {name:'شاورما دجاج صحية',cat:'رئيسية',cal:456,pro:36,carb:38,fat:16,active:true},
+  {name:'كينوا بالخضار المشكلة',cat:'سلطة',cal:290,pro:12,carb:42,fat:8,active:true},
+  {name:'برجر لحم صحي',cat:'رئيسية',cal:480,pro:35,carb:38,fat:18,active:false},
+  {name:'بان كيك بروتين',cat:'سناك',cal:280,pro:24,carb:32,fat:6,active:true},
+  {name:'أوتميل بالتوت',cat:'سناك',cal:220,pro:8,carb:38,fat:5,active:true},
+];
+const DEF_PLANS = [
+  {name:'باقة التخسيس',desc:'وجبات منخفضة السعرات لخسارة الوزن بشكل صحي',cat:'تخسيس',price:499,days:24,meals:3,subs:37},
+  {name:'باقة التضخيم',desc:'وجبات عالية البروتين لبناء العضلات',cat:'تضخيم',price:709,days:24,meals:4,subs:25},
+  {name:'باقة صحي',desc:'نظام غذائي متوازن للحفاظ على الوزن',cat:'صحي',price:599,days:24,meals:3,subs:16},
+  {name:'باقة كيتو',desc:'وجبات منخفضة الكربوهيدرات وعالية الدهون الصحية',cat:'كيتو',price:649,days:24,meals:3,subs:11},
+];
+const DEF_SUBS = [
+  {name:'محمد العلي',plan:'باقة التخسيس',branch:1,days:'24 يوم',start:'2026-10-01',end:'2026-10-25',amount:499,status:'active'},
+  {name:'سارة أحمد',plan:'باقة التضخيم',branch:1,days:'6 أيام',start:'2026-09-29',end:'2026-10-05',amount:709,status:'active'},
+  {name:'عبدالله خالد',plan:'صحي',branch:2,days:'24 يوم',start:'2026-09-28',end:'2026-10-22',amount:599,status:'frozen'},
+  {name:'نورة فهد',plan:'كيتو',branch:1,days:'6 أيام',start:'2026-09-25',end:'2026-10-01',amount:349,status:'expired'},
+  {name:'فيصل ناصر',plan:'باقة التخسيس',branch:3,days:'24 يوم',start:'2026-09-22',end:'2026-10-16',amount:499,status:'active'},
+  {name:'ريم سعد',plan:'باقة التضخيم',branch:1,days:'24 يوم',start:'2026-09-20',end:'2026-10-14',amount:709,status:'active'},
+  {name:'خالد محمد',plan:'صحي',branch:2,days:'6 أيام',start:'2026-09-18',end:'2026-09-24',amount:299,status:'expired'},
+  {name:'هند عبدالرحمن',plan:'باقة التخسيس',branch:3,days:'24 يوم',start:'2026-09-15',end:'2026-10-09',amount:499,status:'active'},
+];
+const DEF_DAILY = [
+  {n:1,name:'محمد العلي',meal:'دجاج مشوي مع أرز بني',type:'غداء',carb:150,branch:1,addr:'حي الفيصلية',done:true},
+  {n:2,name:'سارة أحمد',meal:'سلمون مع خضار سوتيه',type:'غداء',carb:200,branch:1,addr:'حي النزهة',done:true},
+  {n:3,name:'فيصل ناصر',meal:'سلطة سيزر بالدجاج',type:'فطور',carb:100,branch:3,addr:'حي العليا',done:false},
+  {n:4,name:'ريم سعد',meal:'ستيك لحم مع بطاطا',type:'غداء',carb:150,branch:1,addr:'حي الشاطئ',done:false},
+  {n:5,name:'هند عبدالرحمن',meal:'بابيلا الجمبري',type:'عشاء',carb:150,branch:3,addr:'حي الملقا',done:false},
+  {n:6,name:'محمد العلي',meal:'أوتميل بالتوت',type:'فطور',carb:150,branch:1,addr:'حي الفيصلية',done:true},
+  {n:7,name:'عبدالله خالد',meal:'كينوا بالخضار',type:'غداء',carb:200,branch:2,addr:'حي العقربية',done:false},
+  {n:8,name:'خالد محمد',meal:'شاورما دجاج صحية',type:'عشاء',carb:150,branch:2,addr:'حي الراكة',done:false},
+];
+const DEF_CUST = [
+  {name:'محمد العلي',phone:'0555123456',city:'الدمام',branch:1,subs:3,spent:1497,date:'2026-07-12'},
+  {name:'سارة أحمد',phone:'0501234789',city:'الدمام',branch:1,subs:2,spent:1418,date:'2026-08-01'},
+  {name:'عبدالله خالد',phone:'0533456112',city:'الخبر',branch:2,subs:1,spent:599,date:'2026-09-05'},
+  {name:'نورة فهد',phone:'0544678334',city:'الدمام',branch:1,subs:2,spent:698,date:'2026-08-20'},
+  {name:'فيصل ناصر',phone:'0566890556',city:'الرياض',branch:3,subs:4,spent:1996,date:'2026-06-15'},
+  {name:'ريم سعد',phone:'0577012778',city:'الدمام',branch:1,subs:1,spent:709,date:'2026-09-18'},
+  {name:'خالد محمد',phone:'0588234990',city:'الخبر',branch:2,subs:2,spent:598,date:'2026-08-10'},
+  {name:'هند عبدالرحمن',phone:'0511456223',city:'الرياض',branch:3,subs:1,spent:499,date:'2026-09-14'},
+];
+
+let branches = ls('branches') || DEF_BRANCHES;
+let meals = ls('meals') || DEF_MEALS;
+let plans = ls('plans') || DEF_PLANS;
+let subs = ls('subs') || DEF_SUBS;
+let daily = ls('daily') || DEF_DAILY;
+let customers = ls('cust') || DEF_CUST;
+let settings = ls('settings') || {name:'فت كيتشن',desc:'وجبات صحية متوازنة',phone:'0555123456',tax:15};
+
+function save(){ls('branches',branches);ls('meals',meals);ls('plans',plans);ls('subs',subs);ls('daily',daily);ls('cust',customers);ls('settings',settings)}
+
+// === UI ===
+const TI={overview:{t:'نظرة عامة',s:'مرحباً بك في لوحة تحكم Green Life'},meals:{t:'الوجبات',s:'إدارة قائمة الوجبات والقيم الغذائية'},plans:{t:'الباقات',s:'إدارة خطط الاشتراك والأسعار'},subscriptions:{t:'الاشتراكات',s:'متابعة اشتراكات العملاء'},daily:{t:'الطلبات اليومية',s:'كشف التوصيلات والتجهيز اليومي'},customers:{t:'العملاء',s:'قائمة العملاء ومعلوماتهم'},reports:{t:'التقارير',s:'إحصائيات وتحليلات الأداء'},settings:{t:'الإعدادات',s:'إعدادات المطعم والفروع'}};
+
+function go(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.sidebar-link').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelector('[data-page="'+p+'"]').classList.add('active');
+  document.getElementById('pageTitle').textContent=TI[p].t;
+  document.getElementById('pageSubtitle').textContent=TI[p].s;
+  if(window.innerWidth<769){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('open')}
+}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('open')}
+function openModal(id){document.getElementById(id).classList.remove('hidden')}
+function closeModal(id){document.getElementById(id).classList.add('hidden')}
+function toast(msg,type='success'){const el=document.getElementById('toastEl');el.className='toast toast-'+type;el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500)}
+function branchName(id){const b=branches.find(x=>x.id===id);return b?b.name+' — '+b.city:'—'}
+function branchCity(id){const b=branches.find(x=>x.id===id);return b?b.city:'—'}
+function curBranch(){return document.getElementById('branchFilter').value}
+
+function confirm2(title,msg,fn){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmBtn').onclick=()=>{fn();closeModal('confirmModal')};
+  openModal('confirmModal');
+}
+
+// === RENDER ===
+function renderBranchFilter(){
+  const sel=document.getElementById('branchFilter');
+  const val=sel.value;
+  sel.innerHTML='<option value="all">كل الفروع</option>'+branches.map(b=>`<option value="${b.id}">${b.name} — ${b.city}</option>`).join('');
+  sel.value=val;
+}
+
+function renderStats(){
+  const bf=curBranch();
+  const fSubs=bf==='all'?subs:subs.filter(s=>s.branch==bf);
+  const fCust=bf==='all'?customers:customers.filter(c=>c.branch==bf);
+  const activeSubs=fSubs.filter(s=>s.status==='active').length;
+  const revenue=fSubs.reduce((a,s)=>a+s.amount,0);
+  const fDaily=bf==='all'?daily:daily.filter(d=>d.branch==bf);
+
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card bg-white rounded-xl p-5 border border-gray-100"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center"><svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">+12%</span></div><p class="text-2xl font-bold">${fCust.length}</p><p class="text-sm text-gray-500 mt-1">إجمالي العملاء</p></div>
+    <div class="stat-card bg-white rounded-xl p-5 border border-gray-100"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div><span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">+8%</span></div><p class="text-2xl font-bold">${activeSubs}</p><p class="text-sm text-gray-500 mt-1">اشتراكات فعّالة</p></div>
+    <div class="stat-card bg-white rounded-xl p-5 border border-gray-100"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center"><svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">+23%</span></div><p class="text-2xl font-bold">${revenue.toLocaleString()} <span class="text-base font-normal text-gray-400">ر.س</span></p><p class="text-sm text-gray-500 mt-1">إيرادات الشهر</p></div>
+    <div class="stat-card bg-white rounded-xl p-5 border border-gray-100"><div class="flex items-center justify-between mb-3"><div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center"><svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg></div></div><p class="text-2xl font-bold">${fDaily.length}</p><p class="text-sm text-gray-500 mt-1">توصيلات اليوم</p></div>`;
+
+  document.getElementById('recentSubs').innerHTML=fSubs.slice(0,5).map(s=>`<tr class="table-row border-t border-gray-50"><td class="px-5 py-3 font-medium">${s.name}</td><td class="px-5 py-3 text-gray-600">${s.plan} — ${s.days}</td><td class="px-5 py-3 text-gray-500 text-xs">${branchName(s.branch)}</td><td class="px-5 py-3">${s.amount} ر.س</td><td class="px-5 py-3"><span class="badge badge-${s.status}">${SM[s.status]}</span></td></tr>`).join('');
+}
+
+function renderMeals(){
+  const q=(document.getElementById('mealSearch').value||'').trim().toLowerCase();
+  const cf=document.getElementById('mealCatFilter').value;
+  let list=meals;
+  if(q) list=list.filter(m=>m.name.toLowerCase().includes(q));
+  if(cf) list=list.filter(m=>m.cat===cf);
+  document.getElementById('mealsBody').innerHTML=list.map((m,i)=>{
+    const idx=meals.indexOf(m);
+    return `<tr class="table-row border-t border-gray-50"><td class="px-5 py-3 font-medium">${m.name}</td><td class="px-5 py-3 text-gray-500">${m.cat}</td><td class="px-5 py-3">${m.cal}</td><td class="px-5 py-3">${m.pro}ج</td><td class="px-5 py-3">${m.carb}ج</td><td class="px-5 py-3">${m.fat}ج</td><td class="px-5 py-3"><span class="badge ${m.active?'badge-active':'badge-cancelled'}" onclick="toggleMeal(${idx})" style="cursor:pointer">${m.active?'متاح':'متوقف'}</span></td><td class="px-5 py-3 no-print"><div class="flex items-center gap-1"><button onclick="editMeal(${idx})" class="action-btn bg-blue-50 text-blue-600">تعديل</button><button onclick="deleteMeal(${idx})" class="action-btn bg-red-50 text-red-600">حذف</button></div></td></tr>`}).join('');
+}
+
+function renderPlans(){
+  document.getElementById('plansGrid').innerHTML=plans.map((p,i)=>`
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden"><div class="${COLORS[i%COLORS.length]} h-2"></div><div class="p-5">
+      <div class="flex items-center justify-between mb-3"><span class="badge badge-active">${p.cat}</span><h3 class="font-bold">${p.name}</h3></div>
+      <p class="text-sm text-gray-500 mb-4 text-right">${p.desc}</p>
+      <div class="grid grid-cols-2 gap-3 mb-4"><div class="bg-gray-50 rounded-lg p-2.5 text-center"><p class="text-lg font-bold text-brand-600">${p.price}</p><p class="text-xs text-gray-400">ر.س / ${p.days} يوم</p></div><div class="bg-gray-50 rounded-lg p-2.5 text-center"><p class="text-lg font-bold">${p.subs}</p><p class="text-xs text-gray-400">مشترك حالياً</p></div></div>
+      <div class="flex items-center justify-between text-xs text-gray-500 mb-4"><span>${p.meals} وجبات/يوم</span></div>
+      <div class="flex items-center gap-2 no-print"><button onclick="editPlan(${i})" class="flex-1 bg-brand-50 text-brand-600 py-2 rounded-lg text-sm font-medium hover:bg-brand-100">تعديل</button><button onclick="deletePlan(${i})" class="p-2 hover:bg-red-50 rounded-lg"><svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg></button></div>
+    </div></div>`).join('');
+}
+
+function renderSubs(){
+  const q=(document.getElementById('subSearch').value||'').trim().toLowerCase();
+  const sf=document.getElementById('subStatusFilter').value;
+  const bf=curBranch();
+  let list=subs;
+  if(q) list=list.filter(s=>s.name.toLowerCase().includes(q));
+  if(sf) list=list.filter(s=>s.status===sf);
+  if(bf!=='all') list=list.filter(s=>s.branch==bf);
+  document.getElementById('subsBody').innerHTML=list.map((s,i)=>{
+    const idx=subs.indexOf(s);
+    let actions='';
+    if(s.status==='active') actions=`<button onclick="changeSub(${idx},'frozen')" class="action-btn bg-blue-50 text-blue-600">تجميد</button><button onclick="changeSub(${idx},'cancelled')" class="action-btn bg-red-50 text-red-600">إلغاء</button>`;
+    else if(s.status==='frozen') actions=`<button onclick="changeSub(${idx},'active')" class="action-btn bg-green-50 text-green-600">تفعيل</button><button onclick="changeSub(${idx},'cancelled')" class="action-btn bg-red-50 text-red-600">إلغاء</button>`;
+    else if(s.status==='expired'||s.status==='cancelled') actions=`<button onclick="changeSub(${idx},'active')" class="action-btn bg-green-50 text-green-600">تجديد</button>`;
+    return `<tr class="table-row border-t border-gray-50"><td class="px-5 py-3 font-medium">${s.name}</td><td class="px-5 py-3 text-gray-600">${s.plan}</td><td class="px-5 py-3 text-gray-500 text-xs">${branchName(s.branch)}</td><td class="px-5 py-3 text-gray-500">${s.start}</td><td class="px-5 py-3 text-gray-500">${s.end}</td><td class="px-5 py-3">${s.amount} ر.س</td><td class="px-5 py-3"><span class="badge badge-${s.status}">${SM[s.status]}</span></td><td class="px-5 py-3 no-print"><div class="flex items-center gap-1">${actions}</div></td></tr>`}).join('');
+}
+
+function renderDaily(){
+  const bf=curBranch();
+  let list=bf==='all'?daily:daily.filter(d=>d.branch==bf);
+  const ft=list.filter(d=>d.type==='فطور').length,gd=list.filter(d=>d.type==='غداء').length,dn=list.filter(d=>d.type==='عشاء').length;
+  document.getElementById('dailyStats').innerHTML=`<span class="flex items-center gap-1.5 text-sm"><span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span> فطور: <b>${ft}</b></span><span class="flex items-center gap-1.5 text-sm"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> غداء: <b>${gd}</b></span><span class="flex items-center gap-1.5 text-sm"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> عشاء: <b>${dn}</b></span>`;
+  document.getElementById('dailyBody').innerHTML=list.map((d,i)=>{
+    const idx=daily.indexOf(d);
+    return `<tr class="table-row border-t border-gray-50"><td class="px-5 py-3 text-gray-400">${d.n}</td><td class="px-5 py-3 font-medium">${d.name}</td><td class="px-5 py-3">${d.meal}</td><td class="px-5 py-3"><span class="badge ${d.type==='فطور'?'bg-green-50 text-green-700':d.type==='غداء'?'bg-blue-50 text-blue-700':'bg-amber-50 text-amber-700'}">${d.type}</span></td><td class="px-5 py-3">${d.carb}ج</td><td class="px-5 py-3 text-gray-500 text-xs">${branchName(d.branch)}</td><td class="px-5 py-3 text-gray-500 text-xs">${d.addr}</td><td class="px-5 py-3"><span class="badge ${d.done?'badge-active':'badge-pending'}" onclick="toggleDaily(${idx})" style="cursor:pointer">${d.done?'تم التوصيل':'قيد التجهيز'}</span></td></tr>`}).join('');
+}
+
+function renderCustomers(){
+  const q=(document.getElementById('custSearch').value||'').trim().toLowerCase();
+  const bf=curBranch();
+  let list=customers;
+  if(q) list=list.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q));
+  if(bf!=='all') list=list.filter(c=>c.branch==bf);
+  document.getElementById('custBody').innerHTML=list.map(c=>`<tr class="table-row border-t border-gray-50"><td class="px-5 py-3"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-600">${c.name[0]}</div><span class="font-medium">${c.name}</span></div></td><td class="px-5 py-3 text-gray-500">${c.phone}</td><td class="px-5 py-3">${c.city}</td><td class="px-5 py-3 text-gray-500 text-xs">${branchName(c.branch)}</td><td class="px-5 py-3">${c.subs}</td><td class="px-5 py-3">${c.spent} ر.س</td><td class="px-5 py-3 text-gray-500">${c.date}</td></tr>`).join('');
+}
+
+function renderBranches(){
+  document.getElementById('branchesList').innerHTML=branches.map((b,i)=>`
+    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+      <div class="w-8 h-8 rounded-lg ${COLORS[i%COLORS.length]} flex items-center justify-center"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg></div>
+      <div class="flex-1 min-w-0"><div class="text-sm font-medium">${b.name}</div><div class="text-xs text-gray-500">${b.city} — ${b.addr}</div></div>
+      <span class="text-xs text-gray-400">${b.phone}</span>
+      ${branches.length>1?`<button onclick="deleteBranch(${i})" class="p-1 hover:bg-red-50 rounded text-red-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>`:''}
+    </div>`).join('');
+}
+
+function renderReports(){
+  const bf=curBranch();
+  const fSubs=bf==='all'?subs:subs.filter(s=>s.branch==bf);
+  const revenue=fSubs.reduce((a,s)=>a+s.amount,0);
+  const active=fSubs.filter(s=>s.status==='active').length;
+  document.getElementById('reportStats').innerHTML=`
+    <div class="bg-white rounded-xl border border-gray-100 p-5 text-center"><p class="text-3xl font-bold text-brand-600">${revenue.toLocaleString()}</p><p class="text-sm text-gray-500 mt-1">إجمالي الإيرادات (ر.س)</p></div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 text-center"><p class="text-3xl font-bold text-blue-600">${active}</p><p class="text-sm text-gray-500 mt-1">اشتراكات فعّالة</p></div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 text-center"><p class="text-3xl font-bold text-amber-600">92%</p><p class="text-sm text-gray-500 mt-1">معدل التجديد</p></div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 text-center"><p class="text-3xl font-bold text-purple-600">4.6</p><p class="text-sm text-gray-500 mt-1">متوسط التقييم</p></div>`;
+
+  const months=['مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر'];
+  const bData=branches.slice(0,3);
+  bData.forEach((b,i)=>{const h=document.getElementById('rh'+(i+1));if(h)h.textContent=b.name});
+  document.getElementById('revTable').innerHTML=months.map((m,mi)=>{
+    const vals=bData.map((_,bi)=>Math.floor(8000+Math.random()*12000));
+    return `<tr class="table-row border-t border-gray-50"><td class="px-5 py-3 font-medium">${m}</td>${vals.map(v=>`<td class="px-5 py-3">${v.toLocaleString()} ر.س</td>`).join('')}<td class="px-5 py-3 font-bold">${vals.reduce((a,v)=>a+v,0).toLocaleString()} ر.س</td></tr>`}).join('');
+}
+
+function renderSettings(){
+  document.getElementById('setName').value=settings.name;
+  document.getElementById('setDesc').value=settings.desc;
+  document.getElementById('setPhone').value=settings.phone;
+  document.getElementById('setTax').value=settings.tax;
+  document.getElementById('sidebarName').textContent=settings.name;
+}
+
+// === CRUD ===
+function openMealModal(idx){
+  document.getElementById('mealEditIdx').value=idx===undefined?-1:idx;
+  if(idx!==undefined){
+    const m=meals[idx];
+    document.getElementById('mf_name').value=m.name;document.getElementById('mf_cat').value=m.cat;
+    document.getElementById('mf_cal').value=m.cal;document.getElementById('mf_pro').value=m.pro;
+    document.getElementById('mf_carb').value=m.carb;document.getElementById('mf_fat').value=m.fat;
+    document.getElementById('mealModalTitle').textContent='تعديل الوجبة';
+    document.getElementById('mealSaveBtn').textContent='حفظ التعديلات';
+  } else {
+    ['mf_name','mf_cal','mf_pro','mf_carb','mf_fat'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('mealModalTitle').textContent='إضافة وجبة جديدة';
+    document.getElementById('mealSaveBtn').textContent='إضافة الوجبة';
+  }
+  openModal('mealModal');
+}
+function saveMeal(){
+  const n=document.getElementById('mf_name').value.trim();if(!n){toast('اكتب اسم الوجبة','error');return}
+  const obj={name:n,cat:document.getElementById('mf_cat').value,cal:+document.getElementById('mf_cal').value||0,pro:+document.getElementById('mf_pro').value||0,carb:+document.getElementById('mf_carb').value||0,fat:+document.getElementById('mf_fat').value||0,active:true};
+  const idx=+document.getElementById('mealEditIdx').value;
+  if(idx>=0){meals[idx]={...meals[idx],...obj};toast('تم تعديل الوجبة')}else{meals.push(obj);toast('تمت إضافة الوجبة')}
+  save();renderMeals();closeModal('mealModal');
+}
+function editMeal(i){openMealModal(i)}
+function deleteMeal(i){confirm2('حذف الوجبة','هل تريد حذف "'+meals[i].name+'"؟',()=>{meals.splice(i,1);save();renderMeals();toast('تم حذف الوجبة')})}
+function toggleMeal(i){meals[i].active=!meals[i].active;save();renderMeals();toast(meals[i].active?'تم تفعيل الوجبة':'تم إيقاف الوجبة','info')}
+
+function openPlanModal(idx){
+  document.getElementById('planEditIdx').value=idx===undefined?-1:idx;
+  if(idx!==undefined){
+    const p=plans[idx];
+    document.getElementById('pf_name').value=p.name;document.getElementById('pf_desc').value=p.desc;
+    document.getElementById('pf_cat').value=p.cat;document.getElementById('pf_price').value=p.price;
+    document.getElementById('pf_days').value=p.days;document.getElementById('pf_meals').value=p.meals;
+    document.getElementById('planModalTitle').textContent='تعديل الباقة';
+    document.getElementById('planSaveBtn').textContent='حفظ التعديلات';
+  } else {
+    ['pf_name','pf_desc','pf_price'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('planModalTitle').textContent='إضافة باقة جديدة';
+    document.getElementById('planSaveBtn').textContent='إضافة الباقة';
+  }
+  openModal('planModal');
+}
+function savePlan(){
+  const n=document.getElementById('pf_name').value.trim();if(!n){toast('اكتب اسم الباقة','error');return}
+  const obj={name:n,desc:document.getElementById('pf_desc').value,cat:document.getElementById('pf_cat').value,price:+document.getElementById('pf_price').value||0,days:+document.getElementById('pf_days').value,meals:+document.getElementById('pf_meals').value||3,subs:0};
+  const idx=+document.getElementById('planEditIdx').value;
+  if(idx>=0){obj.subs=plans[idx].subs;plans[idx]=obj;toast('تم تعديل الباقة')}else{plans.push(obj);toast('تمت إضافة الباقة')}
+  save();renderPlans();closeModal('planModal');
+}
+function editPlan(i){openPlanModal(i)}
+function deletePlan(i){confirm2('حذف الباقة','هل تريد حذف "'+plans[i].name+'"؟',()=>{plans.splice(i,1);save();renderPlans();toast('تم حذف الباقة')})}
+
+function changeSub(i,st){
+  const labels={frozen:'تجميد',active:'تفعيل',cancelled:'إلغاء'};
+  subs[i].status=st;save();renderSubs();renderStats();toast('تم '+labels[st]+' الاشتراك','info');
+}
+function toggleDaily(i){daily[i].done=!daily[i].done;save();renderDaily();toast(daily[i].done?'تم التوصيل':'تم إرجاع للتجهيز','info')}
+
+function openBranchModal(){['bf_name','bf_city','bf_addr','bf_phone'].forEach(id=>document.getElementById(id).value='');openModal('branchModal')}
+function saveBranch(){
+  const n=document.getElementById('bf_name').value.trim(),c=document.getElementById('bf_city').value.trim();
+  if(!n||!c){toast('اكتب اسم الفرع والمدينة','error');return}
+  branches.push({id:Date.now(),name:n,city:c,addr:document.getElementById('bf_addr').value.trim(),phone:document.getElementById('bf_phone').value.trim()});
+  save();renderBranches();renderBranchFilter();closeModal('branchModal');toast('تم إضافة الفرع');
+}
+function deleteBranch(i){confirm2('حذف الفرع','هل تريد حذف "'+branches[i].name+'"؟',()=>{branches.splice(i,1);save();renderBranches();renderBranchFilter();toast('تم حذف الفرع')})}
+
+function saveSettings(){
+  settings.name=document.getElementById('setName').value;
+  settings.desc=document.getElementById('setDesc').value;
+  settings.phone=document.getElementById('setPhone').value;
+  settings.tax=+document.getElementById('setTax').value;
+  document.getElementById('sidebarName').textContent=settings.name;
+  save();
+}
+
+// === PRINT ===
+function printPage(pageId){
+  const d=new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'});
+  document.querySelectorAll('[id^="printDate"]').forEach(el=>el.textContent=d);
+  document.querySelectorAll('[id^="printName"]').forEach(el=>el.textContent=settings.name);
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('print-target'));
+  document.getElementById('page-'+pageId).classList.add('print-target');
+  window.print();
+  setTimeout(()=>document.getElementById('page-'+pageId).classList.remove('print-target'),500);
+}
+
+// === CHARTS ===
+let charts=[];
+function initCharts(){
+  charts.forEach(c=>c.destroy());charts=[];
+  Chart.defaults.font.family='IBM Plex Sans Arabic';Chart.defaults.font.size=12;
+  const grid='#f1f5f9';
+
+  charts.push(new Chart(document.getElementById('revenueChart'),{type:'bar',data:{labels:['مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر'],datasets:[{data:[32000,38000,42000,46000,51000,54320],backgroundColor:'#1B7A3D20',borderColor:'#1B7A3D',borderWidth:2,borderRadius:6,barPercentage:.6}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid},ticks:{callback:v=>v/1000+'K'}},x:{grid:{display:false}}}}}));
+
+  const planData=plans.map(p=>p.subs);
+  const planLabels=plans.map(p=>p.cat);
+  charts.push(new Chart(document.getElementById('plansChart'),{type:'doughnut',data:{labels:planLabels,datasets:[{data:planData,backgroundColor:HEX.slice(0,plans.length),borderWidth:0}]},options:{responsive:true,cutout:'65%',plugins:{legend:{display:false}}}}));
+  document.getElementById('planLegend').innerHTML=plans.map((p,i)=>`<div class="flex items-center justify-between text-sm"><div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:${HEX[i%HEX.length]}"></span>${p.name}</div><span class="font-medium">${planData.length?Math.round(p.subs/planData.reduce((a,v)=>a+v,1)*100):0}%</span></div>`).join('');
+
+  const bLabels=branches.slice(0,4).map(b=>b.name);
+  const bData=branches.slice(0,4).map((_,i)=>[12000+i*3000,14000+i*2500,16000+i*2000,18000+i*3500,20000+i*2000,22000+i*3000]);
+  charts.push(new Chart(document.getElementById('reportBranchChart'),{type:'bar',data:{labels:['مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر'],datasets:bLabels.map((l,i)=>({label:l,data:bData[i],backgroundColor:HEX[i]+'40',borderColor:HEX[i],borderWidth:1.5,borderRadius:4,barPercentage:.7}))},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{y:{beginAtZero:true,stacked:false,grid:{color:grid},ticks:{callback:v=>v/1000+'K'}},x:{grid:{display:false}}}}}));
+
+  charts.push(new Chart(document.getElementById('reportCustChart'),{type:'line',data:{labels:['1','5','10','15','20','25','30'],datasets:[{label:'عملاء جدد',data:[3,5,8,6,12,9,15],borderColor:'#1B7A3D',backgroundColor:'#1B7A3D15',fill:true,tension:.4,pointBackgroundColor:'#1B7A3D'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid}},x:{grid:{display:false}}}}}));
+}
+
+// === RENDER ALL ===
+function renderAll(){
+  renderStats();renderMeals();renderPlans();renderSubs();renderDaily();renderCustomers();renderReports();renderBranches();renderSettings();
+}
+
+// === INIT ===
+renderBranchFilter();
+renderAll();
+initCharts();
+</script>
+</body>
+</html>
